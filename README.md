@@ -8,7 +8,7 @@ i18n is a macro driven internationalization/localization toolkit for Haxe.
 1. Call macro method I18n.init() at the entry point of your code.
 2. Enclose all string literals to be externalized with macro method I18n.str(). 
 3. Build your project, strings will be extracted to "i18n_work/default/strings.xml", under your project root directory.
-4. Then you can do translating based on strings.xml and store the translations into "i18n_work/<locale>/" folders.
+4. Then you can do translating based on strings.xml and store the translations into "i18n_work/&lt;locale&gt;/" folders.
 5. Specify the target locale with macro compiler option I18n.locale(), e.g.: "--macro com.roxstudio.i18n.I18n.locale('zh')".
 6. Rebuild the project, this time I18n will look up the corresponding translation and replace the original string literals with the translated version.
 
