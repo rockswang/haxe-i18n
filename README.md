@@ -18,7 +18,7 @@ Almost the same procedure with localization, except in step 5, simply use 'globa
 
 ### Macro compiler options
 
-I18n.locale(loc: String): set target locale, 'default', 'global' & arbitary number of custom locales can be used.
+I18n.locale(loc: String): set target locale, 'default', 'global' & arbitary custom locales e.g. 'zh', 'fr', can be used.
 
 I18n.assets(path: String): set the output assets folder, by default it's "assets/i18n". The folder is for storing all locale sensitive resource files.
 
