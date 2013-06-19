@@ -22,7 +22,7 @@ I18n.locale(loc: String): set target locale, 'default', 'global' & arbitary cust
 
 I18n.assets(path: String): set the output assets folder, by default it's "assets/i18n". The folder is for storing all locale sensitive resource files.
 
-To set compiler options in NME project, simple add two lines in NMML file, e.g.:
+To set compiler options in NME project, simply add two lines in NMML file, e.g.:
 ```xml
     <compilerflag name="--macro com.roxstudio.i18n.I18n.locale('zh')" />
     <compilerflag name="--macro com.roxstudio.i18n.I18n.assets('res/i18n')" />
@@ -69,4 +69,10 @@ While using 'global' locale, your app will gain the capability of launch-time lo
     I18n.currentLocale = nme.system.Capabilities.language;
 ```
 If the desired locale is not supported, then it will fallback to 'default'.
+
+### Next step
+
+* Add Haxe 3 support
+* Sample projects, including a StablexUI sample
+* Support run-time locale-switching
 
