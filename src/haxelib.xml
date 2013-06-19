@@ -1,0 +1,9 @@
+<project name="rox-i18n" url="https://github.com/rockswang/i18n" license="BSD">
+    <user name="rockswang"/>
+    <tag v="cross"/>
+    <tag v="macro"/>
+    <tag v="i18n"/>
+    <tag v="localize"/>
+    <description>Macro driven internationalization/localization toolkit for Haxe projects.</description>
+    <version name="0.8">Initial submittion, for Haxe 2.10.</version>
+</project>
