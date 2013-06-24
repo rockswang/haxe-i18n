@@ -15,6 +15,7 @@ i18n is a macro driven internationalization/localization toolkit for Haxe.
 ### Internationalization quick tour:
 
 Almost the same procedure with localization, except two:
+
 1. In step 5, simply use 'global' for the locale argument. This will build a multilingual application.
 2. After I18n.init(), detect and set the desired locale, e.g.: Global.currentLocale = flash.system.Capabilities.language;
 
@@ -74,7 +75,7 @@ If the desired locale is not supported, then it will fallback to 'default'.
 
 ### Run-time locale switching
 
-Run-time locale switching is a little bit more tricky then launch-time approach, normally it needs callbacks to handle string updates, 
+Run-time locale switching is a little bit more tricky then launch-time approach, normally it needs to do some extra operations to handle the string changes, 
 e.g. UI refreshing etc. Here's the approach used by I18n.
 ```haxe
     var textfield = new TextField();
@@ -83,11 +84,11 @@ e.g. UI refreshing etc. Here's the approach used by I18n.
 This will be transformd to:
 ```haxe
     var textfield = new TextField();
-    var __i18n_callb__ = function() { textfield.text = 'Hello'.i18n(); }
+    var __i18n_callb__ = function() { textfield.text = Global.str(0); }
     Global.addListener("current code location", __i18n_callb__);
     __i18n_callb__();
 ```
-And the "__i18n_callb__" will be called again if Global.currentLocale get changed,
+And the "__i18n_callb__" will be called again if Global.currentLocale get changed.
 
 ### Next step
 
