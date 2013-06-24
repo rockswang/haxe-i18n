@@ -1,0 +1,11 @@
+{
+  "name": "rox-i18n",
+  "url": "https://github.com/rockswang/i18n",
+  "license": "MIT",
+  "tags": [ "cross", "macro", "i18n", "localize" ],
+  "description": "Macro driven internationalization/localization toolkit for Haxe.",
+  "version": "1.0.0",
+  "releasenote": "Support Haxe 3.0; Add run-time locale switching solution",
+  "contributors": [ "rockswang" ],
+  "dependencies": {}
+}

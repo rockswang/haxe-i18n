@@ -1,9 +1,9 @@
-<project name="rox-i18n" url="https://github.com/rockswang/i18n" license="BSD">
+<project name="rox-i18n" url="https://github.com/rockswang/i18n" license="MIT">
     <user name="rockswang"/>
     <tag v="cross"/>
     <tag v="macro"/>
     <tag v="i18n"/>
     <tag v="localize"/>
-    <description>Macro driven internationalization/localization toolkit for Haxe projects.</description>
-    <version name="0.8">Initial submittion, for Haxe 2.10.</version>
+    <description>Macro driven internationalization/localization toolkit for Haxe.</description>
+    <version name="1.0.0">Support Haxe 3.0; Add run-time locale switching solution</version>
 </project>

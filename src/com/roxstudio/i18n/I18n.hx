@@ -1,115 +1,60 @@
 package com.roxstudio.i18n;
 
-#if !macro
-
-import nme.Assets;
-
-#end
+import haxe.macro.Context;
+import haxe.macro.Expr;
 
 #if macro
 
-import Lambda;
 import sys.FileSystem;
 import sys.io.File;
 
 #end
 
-import haxe.macro.Context;
-import haxe.macro.Expr;
+#if haxe3
 
-class I18n {
-
-
-#if !macro
-
-    public static var supportedLocales(get_supportedLocales, never): Array<String>;
-    public static var currentLocale(default, set_currentLocale) : String = DEFAULT;
-    public static var isGlobal(default, null): Bool;
-
-    private static inline var DEFAULT = "default";
-
-    private static var map: IntHash<String>;
-    private static var assetsDir: String;
-    private static var absenceResources: Hash<Int>;
-
-    private function new() {
-    }
-
-    public static inline function _str(id: Int) : String {
-        return map.get(id);
-    }
-
-    public static inline function _res(path: String) : String {
-        var locPath = currentLocale + "/" + path;
-        if (absenceResources.exists(locPath)) locPath = DEFAULT + "/" + path;
-        return assetsDir + "/" + locPath;
-    }
-
-    private static inline function get_supportedLocales() : Array<String> {
-        return mGetSupportedLocales();
-    }
-
-    public static function _init() : Void {
-        isGlobal = mGetIsGlobal();
-        if (isGlobal) {
-            assetsDir = mGetAssetsDir();
-            absenceResources = new Hash();
-            for (s in mGetAbsenceResources()) absenceResources.set(s, 1);
-            set_currentLocale(DEFAULT);
-        }
-    }
-
-    private static function set_currentLocale(locale: String) : String {
-        if (!isGlobal) {
-            throw "currentLocale is only available for 'global' locale";
-        }
-        if (!Lambda.has(supportedLocales, locale)) {
-            locale = DEFAULT;
-        }
-        if (currentLocale == locale && map != null) return locale;
-        var path = assetsDir + "/" + locale + "/strings.xml";
-        map = new IntHash();
-        var s = Assets.getText(path);
-        if (s != null && s.length > 0) {
-            var xml = Xml.parse(s);
-            for (n in xml.firstElement().elements()) {
-                var id = Std.parseInt(n.get("id"));
-                var val = n.firstChild().nodeValue;
-                map.set(id, val);
-            }
-        }
-        return currentLocale = locale;
-    }
+private typedef Hash<T> = Map<String, T>;
 
 #end
+
+private typedef Item = {
+    id: Int,
+    val: String,
+    file: String,
+    pos: Array<String>
+}
+
+class I18n {
 
 /******************************************************************
 *       Macro Methods
 ******************************************************************/
 
-    @:macro public static function init() : Expr {
-        if (mStrings != null) return Context.parse("{}", Context.currentPos()); // it's already initialized
-
-        if (!FileSystem.exists(mWorkDir + "/" + DEFAULT)) mkdirs(mWorkDir + "/" + DEFAULT);
+    #if haxe3 macro #else @:macro #end
+    public static function init() : Expr {
+        if (initialized) return Context.parse("{}", Context.currentPos()); // Already initialized
+        // make working directory
+        if (!FileSystem.exists(workDir + "/" + DEFAULT))
+            mkdirs(workDir + "/" + DEFAULT);
+        // recentLocale is the locale used by previous build
         var recentLocale = DEFAULT;
-        if (FileSystem.exists(mWorkDir + "/recentLocale"))
-            recentLocale = File.getContent(mWorkDir + "/recentLocale");
-        if (recentLocale != mUseLocale) rmdir(mAssetsDir);
-        File.saveContent(mWorkDir + "/recentLocale", mUseLocale);
+        if (FileSystem.exists(workDir + "/recentLocale"))
+            recentLocale = File.getContent(workDir + "/recentLocale");
+        if (recentLocale != useLocale) rmdir(assetsDir);
+        File.saveContent(workDir + "/recentLocale", useLocale);
+        // register post-compile callback
         Context.onGenerate(postCompile);
-
-        mLocales = [];
-        for (dir in FileSystem.readDirectory(mWorkDir)) {
-            if (FileSystem.isDirectory(mWorkDir + "/" + dir)) mLocales.push(dir);
+        // scan for all available locale folders
+        for (dir in FileSystem.readDirectory(workDir)) {
+            if (FileSystem.isDirectory(workDir + "/" + dir)) locales.push(dir);
         }
 
-        mLookups = new Hash();
-        var isglobal = mUseLocale == MGLOBAL;
-        var locales = isglobal ? mLocales : [ DEFAULT, mUseLocale ];
+        var isglobal = useLocale == GLOBAL;
+        // make sure only necessary strings.xml are loaded
+        var locales = isglobal ? locales : [ DEFAULT, useLocale ];
         for (loc in locales) {
             var map = new Hash();
-            if (FileSystem.exists(mWorkDir + "/" + loc + "/strings.xml")) {
-                var xml = Xml.parse(File.getContent(mWorkDir + "/" + loc + "/strings.xml")).firstElement();
+            if (FileSystem.exists(workDir + "/" + loc + "/strings.xml")) {
+                var xml = Xml.parse(File.getContent(workDir + "/" + loc + "/strings.xml")).firstElement();
                 for (file in xml.elementsNamed("file")) {
                     var path = file.get("path");
                     for (t in file.elementsNamed("t")) {
@@ -119,102 +64,122 @@ class I18n {
                     }
                 }
             }
-            mLookups.set(loc, map);
+            lookups.set(loc, map);
         }
-        mAbsence = [];
         if (isglobal) {
-            var allRes = listDir(mWorkDir + "/" + DEFAULT, "");
+            // check for absence resources and build a fallback lookup
+            var allRes = listDir(workDir + "/" + DEFAULT, "");
             for (loc in locales) {
                 if (loc == DEFAULT) continue;
-                var locRes = listDir(mWorkDir + "/" + loc, "");
+                var locRes = listDir(workDir + "/" + loc, "");
                 for (file in allRes) {
-                    if (file != "strings.xml" && !Lambda.has(locRes, file)) mAbsence.push(loc + "/" + file);
+                    if (file != "strings.xml" && !Lambda.has(locRes, file))
+                        absence.push(loc + "/" + file);
                 }
             }
         }
 
-        mStrings = new Hash();
-
-        return Context.parse("com.roxstudio.i18n.I18n._init()", Context.currentPos());
+        initialized = true;
+        return Context.parse(isglobal ? "com.roxstudio.i18n.Global.init()" : "{}", Context.currentPos());
     }
 
-    @:macro public static function str(s: ExprOf<String>) : Expr {
+    #if haxe3 macro #else @:macro #end
+    public static function i18n(s: ExprOf<String>) : Expr {
+        if (!initialized) throw "Call I18n.init()";
         var str = expr2Str(s);
         var path = Context.getPosInfos(s.pos).file;
         var id: Int;
         var key = path + "//" + lbEsc(str);
-        var val = mStrings.get(key);
+        var val = strings.get(key);
         var pos = ("" + s.pos).split(":")[1];
-//        Context.warning("pos=" + s.pos + ",line=" + pos, s.pos);
         if (val != null) {
             val.pos.push(pos);
             id = val.id;
         } else {
-            id = mCounter++;
-            mStrings.set(key, { id: id, val: str, file: path, pos: [ pos ] });
+            id = counter++;
+            strings.set(key, { id: id, val: str, file: path, pos: [ pos ] });
         }
-        return switch (mUseLocale) {
-        case MGLOBAL:
-            Context.parse("com.roxstudio.i18n.I18n._str(" + id + ")", s.pos);
+        return switch (useLocale) {
+        case GLOBAL:
+            Context.parse("com.roxstudio.i18n.Global.str(" + id + ")", s.pos);
         default:
-            var val = mLookups.get(mUseLocale).get(key);
-            if (val == null) val = mLookups.get(DEFAULT).get(key);
+            var val = lookups.get(useLocale).get(key);
+            if (val == null) val = lookups.get(DEFAULT).get(key);
             if (val == null) val = str;
             Context.parse("'" + quoteEsc(val) + "'", s.pos);
         }
     }
 
-    @:macro public static function res(path: ExprOf<String>) : Expr {
+    #if haxe3 macro #else @:macro #end
+    public static function i18nRes(path: ExprOf<String>) : Expr {
+        if (!initialized) throw "Call I18n.init()";
         var p = expr2Str(path);
-        var defaultPath = mWorkDir + "/" + DEFAULT + "/" + p;
+        var defaultPath = workDir + "/" + DEFAULT + "/" + p;
         if (!FileSystem.exists(defaultPath)) Context.error("Asset:" + defaultPath + " does not exist.", path.pos);
-        return switch (mUseLocale) {
-        case MGLOBAL:
-            copy(defaultPath, mAssetsDir + "/" + DEFAULT + "/" + p);
-            for (l in mLocales) {
+        return switch (useLocale) {
+        case GLOBAL:
+            copy(defaultPath, assetsDir + "/" + DEFAULT + "/" + p);
+            for (l in locales) {
                 var locPath = l + "/" + p;
-                if (FileSystem.exists(mWorkDir + "/" + locPath)) {
-                    copy(mWorkDir + "/" + locPath, mAssetsDir + "/" + locPath);
+                if (FileSystem.exists(workDir + "/" + locPath)) {
+                    copy(workDir + "/" + locPath, assetsDir + "/" + locPath);
                 }
             }
-            Context.parse("com.roxstudio.i18n.I18n._res('" + p + "')", path.pos);
+            Context.parse("com.roxstudio.i18n.Global.res('" + p + "')", path.pos);
         default:
-            var locPath = mUseLocale + "/" + p;
-            if (FileSystem.exists(mWorkDir + "/" + locPath)) {
-                copy(mWorkDir + "/" + locPath, mAssetsDir + "/" + p);
+            var locPath = useLocale + "/" + p;
+            if (FileSystem.exists(workDir + "/" + locPath)) {
+                copy(workDir + "/" + locPath, assetsDir + "/" + p);
             } else {
-                copy(defaultPath, mAssetsDir + "/" + p);
+                copy(defaultPath, assetsDir + "/" + p);
             }
-            Context.parse("'" + mAssetsDir + "/" + p + "'", path.pos);
+            Context.parse("'" + assetsDir + "/" + p + "'", path.pos);
         }
     }
 
-    @:macro private static function mGetSupportedLocales() : Expr {
+    #if haxe3 macro #else @:macro #end
+    public static function onChange(e: Expr) : Expr {
+        var key = "" + e.pos;
+        var ln = key.split(":")[1];
+        var varname = "__i18n_callb__" + ln + "__" + Std.random(100000000) + "__";
+        var callb: Expr = switch (e.expr) {
+        case EFunction(n, f):
+            n == null && f.args.length == 0 && f.ret == null && f.params.length == 0 ? e : null;
+        default: null;
+        }
+        if (callb == null) {
+            callb = { expr: EFunction(null, { args: [], ret: null, params: [], expr: e }), pos: e.pos };
+        }
+        var line1 = { expr: EVars([ { name: varname, type: null, expr: callb } ]), pos: e.pos };
+        var line2 = Context.parse("com.roxstudio.i18n.Global.addListener('" + key + "', " + varname + ")", e.pos);
+        var line3 = Context.parse(varname + "()", e.pos);
+        return { expr: EBlock([ line1, line2, line3 ]), pos: e.pos };
+    }
+
+    #if haxe3 macro #else @:macro #end
+    public static function getSupportedLocales() : Expr {
         var code = new StringBuf();
         code.add("[");
-        if (mUseLocale == MGLOBAL)
-            for (l in mLocales) code.add("'" + l + "',");
+        if (useLocale == GLOBAL)
+            for (l in locales) code.add("'" + l + "',");
         code.add("]");
         return Context.parse(code.toString(), Context.currentPos());
     }
 
-    @:macro private static function mGetAbsenceResources() : Expr {
+    #if haxe3 macro #else @:macro #end
+    public static function getAbsenceResources() : Expr {
         var code = new StringBuf();
         code.add("[");
-        if (mUseLocale == MGLOBAL) {
-            for (p in mAbsence) code.add("'" + p + "',");
+        if (useLocale == GLOBAL) {
+            for (p in absence) code.add("'" + p + "',");
         }
         code.add("]");
-//        Context.warning("mGetAbsenceResources=" + code, Context.currentPos());
         return Context.parse(code.toString(), Context.currentPos());
     }
 
-    @:macro private static function mGetAssetsDir() : Expr {
-        return Context.parse("'" + mAssetsDir + "'", Context.currentPos());
-    }
-
-    @:macro private static function mGetIsGlobal() : Expr {
-        return Context.parse("" + (mUseLocale == MGLOBAL), Context.currentPos());
+    #if haxe3 macro #else @:macro #end
+    public static function getAssetsDir() : Expr {
+        return Context.parse("'" + assetsDir + "'", Context.currentPos());
     }
 
 /******************************************************************
@@ -224,11 +189,11 @@ class I18n {
 #if macro
 
     public static function locale(locale: String) {
-        mUseLocale = locale;
+        useLocale = locale;
     }
 
     public static function assets(dir: String) {
-        mAssetsDir = dir;
+        assetsDir = dir;
     }
 
 #end
@@ -240,36 +205,37 @@ class I18n {
 #if macro
 
     private static inline var DEFAULT = "default";
-    private static inline var MGLOBAL = "global";
+    private static inline var GLOBAL = "global";
     private static inline var XML_HEAD = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n";
 
-    private static var mUseLocale: String = DEFAULT;
-    private static var mAssetsDir: String = "assets/i18n";
-    private static var mWorkDir: String = "i18n_work";
-    private static var mStrings: Hash<MItem>; // className/id => MItem
-    private static var mLookups: Hash<Hash<String>>; // locale => { className/id => String }
-    private static var mLocales: Array<String>;
-    private static var mAbsence: Array<String>;
-    private static var mCounter: Int = 1;
+    private static var useLocale: String = DEFAULT;
+    private static var assetsDir: String = "assets/i18n";
+    private static var workDir: String = "i18n_work";
+    private static var strings: Hash<Item> = new Hash(); // filepath//id => Item
+    private static var lookups: Hash<Hash<String>> = new Hash(); // locale => { filepath//id => String }
+    private static var locales: Array<String> = [];
+    private static var absence: Array<String> = [];
+    private static var initialized: Bool = false;
+    private static var counter: Int = 1;
 
     private static function postCompile(_) : Void {
-//        Context.warning("postCompile=" + mUseLocale, Context.currentPos());
-        var defLookup = mLookups.get(DEFAULT);
-        var all: Array<MItem> = Lambda.array(mStrings);
-        all.sort(function(i1: MItem, i2: MItem) : Int {
+//        Context.warning("postCompile=" + useLocale, Context.currentPos());
+        var defLookup = lookups.get(DEFAULT);
+        var all: Array<Item> = Lambda.array(strings);
+        all.sort(function(i1: Item, i2: Item) : Int {
             return Reflect.compare(i1.file + "//" + i1.val, i2.file + "//" + i2.val);
         });
         var path: String = null;
         var fileNode: Xml = null;
-        var strings = Xml.createElement("strings");
+        var str = Xml.createElement("strings");
         for (i in all) {
             if (i.file != path) {
                 if (fileNode != null) fileNode.addChild(Xml.createPCData("\r\n  "));
                 path = i.file;
-                strings.addChild(Xml.createPCData("\r\n  "));
+                str.addChild(Xml.createPCData("\r\n  "));
                 fileNode = Xml.createElement("file");
                 fileNode.set("path", path);
-                strings.addChild(fileNode);
+                str.addChild(fileNode);
             }
             fileNode.addChild(Xml.createPCData("\r\n    "));
             var t = Xml.createElement("t");
@@ -285,16 +251,16 @@ class I18n {
             fileNode.addChild(Xml.createComment(lineinfo.toString()));
         }
         if (fileNode != null) fileNode.addChild(Xml.createPCData("\r\n  "));
-        strings.addChild(Xml.createPCData("\r\n"));
-        File.saveContent(mWorkDir + "/" + DEFAULT + "/strings.xml", XML_HEAD + strings.toString());
+        str.addChild(Xml.createPCData("\r\n"));
+        File.saveContent(workDir + "/" + DEFAULT + "/strings.xml", XML_HEAD + str.toString());
 
-        if (mUseLocale != MGLOBAL) return;
+        if (useLocale != GLOBAL) return;
 
-        for (loc in mLocales) {
-            strings = Xml.createElement("strings");
-            var lookup = mLookups.get(loc);
-            for (key in mStrings.keys()) {
-                var item = mStrings.get(key);
+        for (loc in locales) {
+            str = Xml.createElement("strings");
+            var lookup = lookups.get(loc);
+            for (key in strings.keys()) {
+                var item = strings.get(key);
                 var val = lookup.get(key);
                 if (val == null) val = defLookup.get(key);
                 if (val == null) val = item.val;
@@ -302,10 +268,10 @@ class I18n {
                 var t = Xml.createElement("t");
                 t.set("id", "" + id);
                 t.addChild(Xml.createPCData(val));
-                strings.addChild(t);
+                str.addChild(t);
             }
-            mkdirs(mAssetsDir + "/" + loc);
-            File.saveContent(mAssetsDir + "/" + loc + "/strings.xml", strings.toString());
+            mkdirs(assetsDir + "/" + loc);
+            File.saveContent(assetsDir + "/" + loc + "/strings.xml", str.toString());
         }
     }
 
@@ -359,7 +325,9 @@ class I18n {
             }
         default:
         }
-        if (str == null) Context.error("Constant string expected", expr.pos);
+        if (str == null) {
+            Context.error("Constant string expected", expr.pos);
+        }
         return str;
     }
 
@@ -388,14 +356,3 @@ class I18n {
 #end
 
 }
-
-#if macro
-
-private typedef MItem = {
-    id: Int,
-    val: String,
-    file: String,
-    pos: Array<String>
-};
-
-#end
