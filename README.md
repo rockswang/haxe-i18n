@@ -78,7 +78,7 @@ Run-time locale switching is a little bit more tricky then launch-time approach,
 e.g. UI refreshing etc. Here's the approach used by I18n.
 ```haxe
     var textfield = new TextField();
-    Global.onChange(textfield.text = 'Hello'.i18n());
+    I18n.onChange(textfield.text = 'Hello'.i18n());
 ```
 This will be transformd to:
 ```haxe
