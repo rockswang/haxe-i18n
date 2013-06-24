@@ -5,8 +5,8 @@ i18n is a macro driven internationalization/localization toolkit for Haxe.
 
 ### Localization quick tour
 
-1. Call macro method I18n.init() at the entry point of your code.
-2. Enclose all string literals to be externalized with macro method I18n.str(). 
+1. 'using' I18n and call macro method I18n.init() at the entry point of your code.
+2. Add '.i18n()' after all string literals to be externalized.
 3. Build your project, strings will be extracted to "i18n_work/default/strings.xml", under your project root directory.
 4. Then you can do translating based on strings.xml and store the translations into "i18n_work/&lt;locale&gt;/" folders.
 5. Specify the target locale with macro compiler option I18n.locale(), e.g.: "--macro com.roxstudio.i18n.I18n.locale('zh')".
@@ -14,7 +14,9 @@ i18n is a macro driven internationalization/localization toolkit for Haxe.
 
 ### Internationalization quick tour:
 
-Almost the same procedure with localization, except in step 5, simply use 'global' for the locale argument. This will build a multilingual application.
+Almost the same procedure with localization, except two:
+1. In step 5, simply use 'global' for the locale argument. This will build a multilingual application.
+2. After I18n.init(), detect and set the desired locale, e.g.: Global.currentLocale = flash.system.Capabilities.language;
 
 ### Macro compiler options
 
@@ -49,7 +51,7 @@ And the Chinese translation is ready at "i18n_work/zh/strings.xml", like this:
 
 When I target 'zh' locale and build the project, the original haxe code in Main.hx:
 ```haxe
-textfield.text = I18n.str("Hello");
+textfield.text = "Hello".i18n();
 ```
 will be transformed to (at compile-time):
 ```haxe
@@ -57,24 +59,39 @@ textfield.text = "你好";
 ```
 When I target 'global' locale and build the project, the code will be transformed to:
 ```haxe
-textfield.text = I18n._str(0);
+textfield.text = Global.str(0);
 ```
 I18n._str() is a run-time method for accessing the string mapping.
 
-### The multilingual application
+### Launch-time locale switching
 
 While using 'global' locale, your app will gain the capability of launch-time locale switching. E.g.:
 ```haxe
     I18n.init();
-    I18n.currentLocale = nme.system.Capabilities.language;
+    Global.currentLocale = flash.system.Capabilities.language;
 ```
 If the desired locale is not supported, then it will fallback to 'default'.
 
+### Run-time locale switching
+
+Run-time locale switching is a little bit more tricky then launch-time approach, normally it needs callbacks to handle string updates, 
+e.g. UI refreshing etc. Here's the approach used by I18n.
+```haxe
+    var textfield = new TextField();
+    Global.onChange(textfield.text = 'Hello'.i18n());
+```
+This will be transformd to:
+```haxe
+    var textfield = new TextField();
+    var __i18n_callb__ = function() { textfield.text = 'Hello'.i18n(); }
+    Global.addListener("current code location", __i18n_callb__);
+    __i18n_callb__();
+```
+And the "__i18n_callb__" will be called again if Global.currentLocale get changed,
+
 ### Next step
 
-* Add Haxe 3 support
 * Sample projects, including a StablexUI sample
-* Support run-time locale-switching
 
 ###License
 
