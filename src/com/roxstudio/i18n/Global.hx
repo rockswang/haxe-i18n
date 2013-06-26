@@ -1,6 +1,6 @@
 package com.roxstudio.i18n;
 
-import nme.Assets;
+import haxe.Resource;
 
 #if haxe3
 
@@ -57,11 +57,12 @@ class Global {
     public static function setCurrentLocale(locale: String) : String {
         if (!Lambda.has(supportedLocales, locale)) locale = DEFAULT;
         if (currentLocale == locale && map != null) return locale;
-        var path = assetsDir + "/" + locale + "/strings.xml";
+        var resName = "__rox_i18n_strings_" + locale;
         map = new IntHash();
-        var s = Assets.getText(path);
+//        var s = Assets.getText(resName);
+        var s = Resource.getString(resName);
         if (s == null || s.length == 0)
-            throw "Cannot load assets " + path + ".";
+            throw "Cannot load Resource " + resName + ".";
         var xml = Xml.parse(s);
         for (n in xml.firstElement().elements()) {
             var id = Std.parseInt(n.get("id"));

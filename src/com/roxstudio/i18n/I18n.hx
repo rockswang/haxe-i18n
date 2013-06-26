@@ -280,8 +280,9 @@ class I18n {
                 t.addChild(Xml.createPCData(val));
                 str.addChild(t);
             }
-            mkdirs(assetsDir + "/" + loc);
-            File.saveContent(assetsDir + "/" + loc + "/strings.xml", str.toString());
+            Context.addResource("__rox_i18n_strings_" + loc, haxe.io.Bytes.ofString(str.toString()));
+//            mkdirs(assetsDir + "/" + loc);
+//            File.saveContent(assetsDir + "/" + loc + "/strings.xml", str.toString());
         }
     }
 
