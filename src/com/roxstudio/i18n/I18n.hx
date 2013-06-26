@@ -31,6 +31,7 @@ class I18n {
 
     #if haxe3 macro #else @:macro #end
     public static function init() : Expr {
+//        trace("I18n.init()");
         if (initialized) return Context.parse("{}", Context.currentPos()); // Already initialized
         // make working directory
         if (!FileSystem.exists(workDir + "/" + DEFAULT))
@@ -163,7 +164,14 @@ class I18n {
         if (useLocale == GLOBAL)
             for (l in locales) code.add("'" + l + "',");
         code.add("]");
+//        trace("I18n.getSupportedLocales=" + code);
         return Context.parse(code.toString(), Context.currentPos());
+    }
+
+    #if haxe3 macro #else @:macro #end
+    public static function setCurrentLocale(locExpr: Expr) : Expr {
+        var field = Context.parse("com.roxstudio.i18n.Global.setCurrentLocale", locExpr.pos);
+        return { expr: ECall(field, [ locExpr ]), pos: locExpr.pos };
     }
 
     #if haxe3 macro #else @:macro #end
@@ -189,10 +197,12 @@ class I18n {
 #if macro
 
     public static function locale(locale: String) {
+//        trace("I18n.locale = " + locale);
         useLocale = locale;
     }
 
     public static function assets(dir: String) {
+//        trace("I18n.assets = " + dir);
         assetsDir = dir;
     }
 
