@@ -74,4 +74,9 @@ class Global {
         return currentLocale;
     }
 
+    #if haxe3 @:noCompletion #end
+    public static inline function getCurrentLocale() : String {
+        return currentLocale;
+    }
+
 }

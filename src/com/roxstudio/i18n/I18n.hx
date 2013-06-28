@@ -140,7 +140,8 @@ class I18n {
 
     #if haxe3 macro #else @:macro #end
     public static function onChange(e: Expr) : Expr {
-        var key = "" + e.pos;
+        var pos = e.pos;
+        var key = "" + pos;
         var ln = key.split(":")[1];
         var varname = "__i18n_callb__" + ln + "__" + Std.random(100000000) + "__";
         var callb: Expr = switch (e.expr) {
@@ -149,12 +150,13 @@ class I18n {
         default: null;
         }
         if (callb == null) {
-            callb = { expr: EFunction(null, { args: [], ret: null, params: [], expr: e }), pos: e.pos };
+            callb = { expr: EFunction(null, { args: [], ret: null, params: [], expr: e }), pos: pos };
         }
-        var line1 = { expr: EVars([ { name: varname, type: null, expr: callb } ]), pos: e.pos };
-        var line2 = Context.parse("com.roxstudio.i18n.Global.addListener('" + key + "', " + varname + ")", e.pos);
-        var line3 = Context.parse(varname + "()", e.pos);
-        return { expr: EBlock([ line1, line2, line3 ]), pos: e.pos };
+        var line1 = { expr: EVars([ { name: varname, type: null, expr: callb } ]), pos: pos };
+        var line2 = Context.parse("com.roxstudio.i18n.Global.addListener('" + key + "', " + varname + ")", pos);
+        var line3 = Context.parse(varname + "()", pos);
+        return useLocale == GLOBAL ? { expr: EBlock([ line1, line2, line3 ]), pos: pos }
+            : { expr: EBlock([ line1, line3 ]), pos: pos };
     }
 
     #if haxe3 macro #else @:macro #end
@@ -172,6 +174,12 @@ class I18n {
     public static function setCurrentLocale(locExpr: Expr) : Expr {
         var field = Context.parse("com.roxstudio.i18n.Global.setCurrentLocale", locExpr.pos);
         return { expr: ECall(field, [ locExpr ]), pos: locExpr.pos };
+    }
+
+    #if haxe3 macro #else @:macro #end
+    public static function getCurrentLocale() : Expr {
+        var field = Context.parse("com.roxstudio.i18n.Global.getCurrentLocale", Context.currentPos());
+        return { expr: ECall(field, []), pos: Context.currentPos() };
     }
 
     #if haxe3 macro #else @:macro #end
@@ -307,7 +315,12 @@ class I18n {
             if (FileSystem.isDirectory(sub)) {
                 rmdir(sub);
             } else {
-                FileSystem.deleteFile(sub);
+                try {
+                    FileSystem.deleteFile(sub);
+                } catch (ex: Dynamic) {
+                    Context.error("Failed removing " + sub + ", you may need to delete" +
+                        " the i18n assets directory manually.", Context.currentPos());
+                }
             }
         }
         FileSystem.deleteDirectory(path);
